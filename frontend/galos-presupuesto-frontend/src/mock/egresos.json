@@ -6,8 +6,9 @@
     "medio_pago": "Tarjeta",
     "monto": 150000,
     "cuota_actual": 1,
-    "cuotas_totales": 12,
-    "fecha": "2025-07-01"
+    "cuotas_totales": 12, 
+    "mes": 1, 
+    "year": 2025
   },
   {
     "id": 2,
@@ -16,8 +17,9 @@
     "medio_pago": "Efectivo",
     "monto": 8500,
     "cuota_actual": 1,
-    "cuotas_totales": 1,
-    "fecha": "2025-07-10"
+    "cuotas_totales": 1, 
+    "mes": 1,
+    "year": 2025
   },
   {
     "id": 3,
@@ -26,7 +28,41 @@
     "medio_pago": "Tarjeta",
     "monto": 45000,
     "cuota_actual": 3,
-    "cuotas_totales": 6,
-    "fecha": "2025-07-05"
+    "cuotas_totales": 6, 
+    "mes": 7,
+    "year": 2025
+  }, 
+  {
+    "id": 1,
+    "gasto": "Televisor Samsung 55\"",
+    "categoria": "Electrodomésticos",
+    "medio_pago": "Tarjeta",
+    "monto": 150000,
+    "cuota_actual": 1,
+    "cuotas_totales": 12, 
+    "mes": 1, 
+    "year": 2025
+  },
+  {
+    "id": 2,
+    "gasto": "Cena en restaurante",
+    "categoria": "Comida",
+    "medio_pago": "Efectivo",
+    "monto": 8500,
+    "cuota_actual": 1,
+    "cuotas_totales": 1, 
+    "mes": 7,
+    "year": 2025
+  },
+  {
+    "id": 3,
+    "gasto": "Zapatillas deportivas",
+    "categoria": "Ropa",
+    "medio_pago": "Tarjeta",
+    "monto": 45000,
+    "cuota_actual": 3,
+    "cuotas_totales": 6, 
+    "mes": 7,
+    "year": 2025
   }
 ]

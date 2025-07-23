@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # --- Servicio de Base de Datos PostgreSQL ---
+  db:
+    image: postgres:16-alpine
+    container_name: presupuesto_db
+    environment:
+      POSTGRES_USER: santigalo      # Usuario de la DB
+      POSTGRES_PASSWORD: admin1234    # Contraseña de la DB
+      POSTGRES_DB: presupuesto_app_db      # Nombre de la DB
+    ports:
+      - "5432:5432" # Mapea el puerto para poder conectarte desde tu PC si lo necesitas
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Volumen para persistencia de datos
+    restart: unless-stopped
+
+  # --- Servicio del Backend Node.js ---
+  backend:
+    container_name: presupuesto_backend
+    build:
+      context: ./backend # Ruta a la carpeta del backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001" # Mapea el puerto de la API
+    environment:
+      # Variables para conectar a la DB.
+      # OJO: El host no es 'localhost', es el nombre del servicio 'db'
+      DB_HOST: db
+      DB_USER: santigalo
+      DB_PASSWORD: admin1234
+      DB_NAME: presupuesto_app_db
+      DB_PORT: 5432
+    depends_on:
+      - db # Le dice a Docker que inicie la DB antes que el backend
+    restart: unless-stopped
+
+  # --- Servicio del Frontend React ---
+  frontend:
+    container_name: presupuesto_frontend
+    build:
+      # RUTA ACTUALIZADA para que coincida con tu estructura de proyecto
+      context: ./frontend/galos-presupuesto-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80" # Mapea el puerto 80 de Nginx al 3000 de tu PC
+    depends_on:
+      - backend # Opcional, pero buena práctica
+    restart: unless-stopped
+
+# --- Definición del volumen para la DB ---
+volumes:
+  postgres_data:
