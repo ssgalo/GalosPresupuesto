@@ -103,4 +103,25 @@ router.post('/duplicar', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { gasto, monto, categoria, medio_pago, cuota_actual, cuotas_totales, gasto_fijo } = req.body;
+        const updatedGasto = await pool.query(
+            `UPDATE gastos 
+             SET gasto = $1, monto = $2, categoria = $3, medio_pago = $4, cuota_actual = $5, cuotas_totales = $6, gasto_fijo = $7 
+             WHERE id = $8 RETURNING *`,
+            [gasto, monto, categoria, medio_pago, cuota_actual, cuotas_totales, gasto_fijo, id]
+        );
+
+        if (updatedGasto.rowCount === 0) {
+            return res.status(404).json({ message: 'Gasto no encontrado' });
+        }
+        res.json(updatedGasto.rows[0]);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Error al editar el gasto' });
+    }
+});
+
 module.exports = router;

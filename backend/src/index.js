@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const gastosRoutes = require('./routes/gastos');
+const ingresosRoutes = require('./routes/ingresos');
 
 const app = express();
 const PORT = 3001;
@@ -15,6 +16,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/gastos', gastosRoutes);
+app.use('/api/ingresos', ingresosRoutes);
 
 // Iniciar servidor
 app.listen(PORT, () => {

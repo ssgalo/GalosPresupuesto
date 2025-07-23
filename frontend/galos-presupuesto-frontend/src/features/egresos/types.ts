@@ -8,4 +8,13 @@ export interface Gasto {
   cuotas_totales: number;
   mes: number;
   year: number;
+  gasto_fijo: boolean;
+}
+
+export interface Ingreso {
+  id: number;
+  monto: number;
+  origen: string;
+  mes: number;
+  year: number;
 }

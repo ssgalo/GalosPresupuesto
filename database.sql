@@ -11,8 +11,11 @@ CREATE TABLE gastos (
     fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Opcional: Insertar algunos datos de ejemplo
-INSERT INTO gastos (gasto, monto, categoria, medio_pago, mes, year, cuota_actual, cuotas_totales) VALUES
-('Supermercado', 150.50, 'Comida', 'Tarjeta', 7, 2024, 1, 1),
-('Alquiler', 800.00, 'Vivienda', 'Efectivo', 7, 2024, 1, 1),
-('Zapatillas', 120.00, 'Ropa', 'Tarjeta', 7, 2024, 1, 3);
+CREATE TABLE ingresos (
+    id SERIAL PRIMARY KEY,
+    monto NUMERIC(10, 2) NOT NULL,
+    origen VARCHAR(255),
+    mes INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
