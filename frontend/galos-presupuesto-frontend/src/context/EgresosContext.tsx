@@ -1,12 +1,16 @@
 import React, { createContext, useState, useContext, type ReactNode, useEffect } from 'react';
-// Asume que la ruta al tipo y al mock son correctas
-import type { Gasto } from '../features/egresos/types'; 
-import mockGastosData from '../mock/egresos.json';
+import type { Gasto } from '../features/egresos/types';
+
+// Define la URL de la API. Recuerda crear un archivo .env en tu frontend
+// con VITE_API_ENDPOINT=http://localhost:3001/api
+const API_URL = import.meta.env.VITE_API_ENDPOINT || 'http://localhost:3001/api';
 
 interface EgresosContextType {
   gastos: Gasto[];
-  agregarGasto: (gasto: Omit<Gasto, 'id'>) => void;
-  agregarGastos: (nuevosGastos: Omit<Gasto, 'id'>[]) => void; // <--- NUEVA FUNCIÓN
+  cargarGastos: () => Promise<void>;
+  agregarGasto: (gasto: Omit<Gasto, 'id'>) => Promise<void>;
+  agregarGastos: (nuevosGastos: Omit<Gasto, 'id'>[]) => Promise<void>;
+  borrarGasto: (id: Gasto['id']) => Promise<void>;
 }
 
 const EgresosContext = createContext<EgresosContextType | undefined>(undefined);
@@ -14,31 +18,84 @@ const EgresosContext = createContext<EgresosContextType | undefined>(undefined);
 export const EgresosProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [gastos, setGastos] = useState<Gasto[]>([]);
 
+  // Función para cargar los gastos desde el backend
+  const cargarGastos = async () => {
+    try {
+      const response = await fetch(`${API_URL}/gastos`);
+      if (!response.ok) {
+        throw new Error('Error al cargar los gastos');
+      }
+      const data = await response.json();
+      setGastos(data);
+    } catch (error) {
+      console.error(error);
+      // Opcional: manejar el estado de error en la UI
+    }
+  };
+
+  // Carga inicial de datos cuando el componente se monta
   useEffect(() => {
-    // Se asegura de que los datos del mock tengan un tipo Gasto[]
-    setGastos(mockGastosData as Gasto[]);
+    cargarGastos();
   }, []);
 
-  const agregarGasto = (nuevoGasto: Omit<Gasto, 'id'>) => {
-    const gastoConId: Gasto = {
-      ...nuevoGasto,
-      id: 0, // Usar crypto para IDs más robustos
-    };
-    setGastos(prevGastos => [gastoConId, ...prevGastos]);
+  // Función para agregar un único gasto
+  const agregarGasto = async (nuevoGasto: Omit<Gasto, 'id'>) => {
+    try {
+      const response = await fetch(`${API_URL}/gastos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(nuevoGasto),
+      });
+      if (!response.ok) {
+        throw new Error('Error al agregar el gasto');
+      }
+      const gastoCreado = await response.json();
+      // Actualiza el estado local con el gasto devuelto por la API (que ya tiene un ID)
+      setGastos(prevGastos => [gastoCreado, ...prevGastos]);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  // --- INICIO: NUEVA FUNCIÓN PARA AGREGAR MÚLTIPLES GASTOS ---
-  const agregarGastos = (nuevosGastos: Omit<Gasto, 'id'>[]) => {
-    const gastosConId = nuevosGastos.map(gasto => ({
-        ...gasto,
-        id: 0, // Asigna un ID único a cada nuevo gasto
-    }));
-    setGastos(prevGastos => [...prevGastos, ...gastosConId]);
+  // Función para agregar múltiples gastos (para la duplicación)
+  const agregarGastos = async (nuevosGastos: Omit<Gasto, 'id'>[]) => {
+     try {
+        // Usamos Promise.all para enviar todas las peticiones en paralelo
+        await Promise.all(
+            nuevosGastos.map(gasto => fetch(`${API_URL}/gastos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(gasto)
+            }))
+        );
+        // Después de agregar todos, volvemos a cargar la lista completa
+        // para asegurar que la UI esté 100% sincronizada.
+        await cargarGastos();
+    } catch (error) {
+        console.error("Error al duplicar gastos:", error);
+    }
   };
-  // --- FIN: NUEVA FUNCIÓN ---
+
+  // Función para borrar un gasto
+  const borrarGasto = async (id: Gasto['id']) => {
+    try {
+        const response = await fetch(`${API_URL}/gastos/${id}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            throw new Error('Error al eliminar el gasto');
+        }
+        // Actualiza el estado local eliminando el gasto por su ID
+        setGastos(prevGastos => prevGastos.filter(gasto => gasto.id !== id));
+    } catch (error) {
+        console.error(error);
+    }
+  };
 
   return (
-    <EgresosContext.Provider value={{ gastos, agregarGasto, agregarGastos }}>
+    <EgresosContext.Provider value={{ gastos, cargarGastos, agregarGasto, agregarGastos, borrarGasto }}>
       {children}
     </EgresosContext.Provider>
   );

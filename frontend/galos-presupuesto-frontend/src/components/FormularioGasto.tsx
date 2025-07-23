@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useEgresos } from '../context/EgresosContext';
 
-// 1. Se añade 'fechaSeleccionada' a las props que recibe el componente
 interface FormularioGastoProps {
   onClose: () => void;
   fechaSeleccionada: Date; 
@@ -16,26 +15,30 @@ const FormularioGasto: React.FC<FormularioGastoProps> = ({ onClose, fechaSelecci
   const [medioPago, setMedioPago] = useState<'Tarjeta' | 'Efectivo'>('Tarjeta');
   const [cuotasTotales, setCuotasTotales] = useState('1');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // La función ahora es asíncrona
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gasto || !monto || !categoria) {
       alert('Por favor, completa todos los campos.');
       return;
     }
 
-    // 2. Se usa 'fechaSeleccionada' para obtener el mes y año correctos
-    agregarGasto({
-      gasto,
-      monto: parseFloat(monto),
-      categoria,
-      medio_pago: medioPago,
-      cuota_actual: 1,
-      cuotas_totales: parseInt(cuotasTotales, 10),
-      mes: fechaSeleccionada.getMonth() + 1,
-      year: fechaSeleccionada.getFullYear(),
-    });
-    
-    onClose();
+    try {
+      await agregarGasto({
+        gasto,
+        monto: parseFloat(monto),
+        categoria,
+        medio_pago: medioPago,
+        cuota_actual: 1,
+        cuotas_totales: parseInt(cuotasTotales, 10),
+        mes: fechaSeleccionada.getMonth() + 1,
+        year: fechaSeleccionada.getFullYear(),
+      });
+      onClose(); // Cierra el modal solo si la operación fue exitosa
+    } catch (error) {
+        console.error("Error al crear el gasto:", error);
+        alert("No se pudo crear el gasto. Inténtalo de nuevo.");
+    }
   };
 
   return (
@@ -51,7 +54,7 @@ const FormularioGasto: React.FC<FormularioGastoProps> = ({ onClose, fechaSelecci
           placeholder="Ej: Zapatillas"
         />
       </div>
-       <div>
+      <div>
         <label htmlFor="monto" className="block text-sm font-medium text-gray-700">Monto</label>
         <input
           type="number"
@@ -62,7 +65,7 @@ const FormularioGasto: React.FC<FormularioGastoProps> = ({ onClose, fechaSelecci
           placeholder="Ej: 50000"
         />
       </div>
-       <div>
+      <div>
         <label htmlFor="categoria" className="block text-sm font-medium text-gray-700">Categoría</label>
         <input
           type="text"

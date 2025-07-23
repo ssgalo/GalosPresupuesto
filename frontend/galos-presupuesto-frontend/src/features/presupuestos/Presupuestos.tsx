@@ -1,18 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChevronDown, CreditCard, DollarSign, Plus, ChevronLeft, ChevronRight, ArrowLeft, Copy } from 'lucide-react';
+import { ChevronDown, CreditCard, DollarSign, Plus, ChevronLeft, ChevronRight, ArrowLeft, Copy, Trash2, AlertTriangle } from 'lucide-react';
 import { useEgresos } from '../../context/EgresosContext';
 import Modal from '../../components/Modal';
 import FormularioGasto from '../../components/FormularioGasto';
 import type { Gasto } from '../egresos/types';
 
+const API_URL = import.meta.env.VITE_API_ENDPOINT || 'http://localhost:3001/api';
+
 const Presupuestos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
-  const [notification, setNotification] = useState(''); // Estado para notificaciones
+  const [notification, setNotification] = useState('');
+  const [gastoIdParaBorrar, setGastoIdParaBorrar] = useState<Gasto['id'] | null>(null);
 
-  // Se consume la nueva función del contexto
-  const { gastos, agregarGastos } = useEgresos();
+  // Se consumen las funciones actualizadas del contexto
+  const { gastos, cargarGastos, borrarGasto } = useEgresos();
 
   const [filtroCategoria, setFiltroCategoria] = useState<string>('Todos');
   const [filtroMedioPago, setFiltroMedioPago] = useState<string>('Todos');
@@ -50,7 +53,8 @@ const Presupuestos: React.FC = () => {
   };
 
   const gastosFiltrados = useMemo(() => {
-    return gastos.filter(gasto => {
+    // La propiedad 'monto' en la DB es un string, hay que convertirlo a número
+    return gastos.map(g => ({...g, monto: Number(g.monto)})).filter(gasto => {
       const pasaCategoria = filtroCategoria === 'Todos' || gasto.categoria === filtroCategoria;
       const pasaMedioPago = filtroMedioPago === 'Todos' || gasto.medio_pago === filtroMedioPago;
       const pasaMes = gasto.mes === fechaSeleccionada.getMonth() + 1;
@@ -84,7 +88,6 @@ const Presupuestos: React.FC = () => {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
   };
   
-  // --- INICIO: LÓGICA PARA DUPLICAR GASTOS ---
   const showNotification = (message: string) => {
     setNotification(message);
     setTimeout(() => {
@@ -92,35 +95,36 @@ const Presupuestos: React.FC = () => {
     }, 3000);
   };
 
-  const handleDuplicarGastos = () => {
-    const mesActual = fechaSeleccionada.getMonth();
-    const anioActual = fechaSeleccionada.getFullYear();
+  const handleDuplicarGastos = async () => {
+    const sourceMonth = fechaSeleccionada.getMonth() + 1; // getMonth es 0-11
+    const sourceYear = fechaSeleccionada.getFullYear();
 
-    let mesSiguiente = mesActual + 1;
-    let anioSiguiente = anioActual;
-    if (mesSiguiente > 11) {
-        mesSiguiente = 0;
-        anioSiguiente++;
+    try {
+      const response = await fetch(`${API_URL}/gastos/duplicar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sourceMonth, sourceYear }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Error al duplicar los gastos');
+      }
+
+      showNotification(result.message);
+      
+      // Si se duplicaron gastos, recargamos la lista para ver los cambios
+      if (result.duplicated && result.duplicated.length > 0) {
+        await cargarGastos();
+      }
+
+    } catch (error) {
+      console.error(error);
+      showNotification('Ocurrió un error al intentar duplicar.');
     }
-
-    const gastosADuplicar = gastosFiltrados.filter(
-        gasto => gasto.cuotas_totales > 1 && gasto.cuota_actual < gasto.cuotas_totales
-    );
-
-    if (gastosADuplicar.length === 0) {
-        showNotification("No hay gastos con cuotas para duplicar.");
-        return;
-    }
-
-    const nuevosGastos: Omit<Gasto, 'id'>[] = gastosADuplicar.map(gasto => ({
-        ...gasto,
-        mes: mesSiguiente + 1,
-        year: anioSiguiente,
-        cuota_actual: gasto.cuota_actual + 1,
-    }));
-
-    agregarGastos(nuevosGastos);
-    showNotification(`${nuevosGastos.length} gasto(s) duplicado(s) para el mes siguiente.`);
   };
 
   const hayGastosParaDuplicar = useMemo(() => {
@@ -128,7 +132,14 @@ const Presupuestos: React.FC = () => {
         gasto => gasto.cuotas_totales > 1 && gasto.cuota_actual < gasto.cuotas_totales
     );
   }, [gastosFiltrados]);
-  // --- FIN: LÓGICA PARA DUPLICAR GASTOS ---
+
+  const handleConfirmarBorrado = async () => {
+    if (gastoIdParaBorrar) {
+        await borrarGasto(gastoIdParaBorrar);
+        setGastoIdParaBorrar(null);
+        showNotification("Gasto eliminado correctamente.");
+    }
+  };
 
   return (
     <>
@@ -239,7 +250,6 @@ const Presupuestos: React.FC = () => {
             </div>
 
             <div className="lg:col-span-3 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              {/* --- INICIO: BOTÓN DE DUPLICAR --- */}
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Detalle de Gastos</h2>
                 <button
@@ -251,7 +261,6 @@ const Presupuestos: React.FC = () => {
                     Duplicar
                 </button>
               </div>
-              {/* --- FIN: BOTÓN DE DUPLICAR --- */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-500">
                   <thead className="text-xs text-gray-700 uppercase bg-gray-50">
@@ -260,6 +269,7 @@ const Presupuestos: React.FC = () => {
                       <th scope="col" className="px-6 py-3">Categoría</th>
                       <th scope="col" className="px-6 py-3">Medio de Pago</th>
                       <th scope="col" className="px-6 py-3 text-right">Monto</th>
+                      <th scope="col" className="px-6 py-3 text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -292,11 +302,16 @@ const Presupuestos: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right font-mono text-gray-900">{formatCurrency(gasto.monto)}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button onClick={() => setGastoIdParaBorrar(gasto.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition-colors">
+                                <Trash2 size={16} />
+                            </button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="text-center py-8 text-gray-500">
+                        <td colSpan={5} className="text-center py-8 text-gray-500">
                           No se encontraron gastos para este mes.
                         </td>
                       </tr>
@@ -319,14 +334,42 @@ const Presupuestos: React.FC = () => {
           fechaSeleccionada={fechaSeleccionada}
         />
       </Modal>
+
+      <Modal
+        isOpen={gastoIdParaBorrar !== null}
+        onClose={() => setGastoIdParaBorrar(null)}
+        title="Confirmar Eliminación"
+      >
+        <div className="text-center">
+            <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+            <h3 className="mb-2 text-lg font-normal text-gray-600">
+                ¿Estás seguro de que deseas eliminar este gasto?
+            </h3>
+            <p className="mb-5 text-sm text-gray-500">
+                Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-center gap-4">
+                <button
+                    onClick={() => setGastoIdParaBorrar(null)}
+                    className="bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-300"
+                >
+                    Cancelar
+                </button>
+                <button
+                    onClick={handleConfirmarBorrado}
+                    className="bg-red-600 text-black font-semibold px-4 py-2 rounded-lg hover:bg-red-700"
+                >
+                    Sí, eliminar
+                </button>
+            </div>
+        </div>
+      </Modal>
       
-      {/* --- INICIO: ELEMENTO DE NOTIFICACIÓN --- */}
       {notification && (
         <div className="fixed bottom-5 right-5 bg-gray-800 text-white py-2 px-4 rounded-lg shadow-lg z-50 animate-pulse">
             {notification}
         </div>
       )}
-      {/* --- FIN: ELEMENTO DE NOTIFICACIÓN --- */}
     </>
   );
 };
